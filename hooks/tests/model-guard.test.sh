@@ -45,9 +45,16 @@ expect 2 "start_session Fable blocked" "$(main mcp__ccd_session__start_session '
 expect 2 "set_session_model opus refused" "$(main mcp__ccd_session_mgmt__set_session_model '{"model":"claude-opus-5-5"}')"
 expect 0 "set_session_model sonnet ok" "$(main mcp__ccd_session_mgmt__set_session_model '{"model":"claude-sonnet-5-5"}')"
 expect 0 "other tools ignored" "$(main Bash '{"command":"ls"}')"
-# an old "ok opus" marker changes nothing
+expect 2 "set_session_effort high refused" "$(main mcp__ccd_session_mgmt__set_session_effort '{"effort":"high"}')"
+expect 2 "set_session_effort max refused" "$(main mcp__ccd_session_mgmt__set_session_effort '{"effort":"max"}')"
+grep -q "no OK for it" "$T/err" && ok || bad "effort message"
+expect 0 "set_session_effort medium ok" "$(main mcp__ccd_session_mgmt__set_session_effort '{"effort":"medium"}')"
+expect 2 "start_session xhigh refused" "$(main mcp__ccd_session__start_session '{"initiation":"user_asked","model":"claude-sonnet-5-5","effort":"xhigh","prompt":"x"}')"
+expect 2 "helper with effort high refused" "$(agent '"subagent_type":"helper-medium","effort":"high","prompt":"x"')"
+expect 0 "hard work on a Sonnet builder allowed" "$(agent '"subagent_type":"helper-builder","prompt":"REPO: /x\\nunknown cause, messy code"')"
+# a leftover permission file changes nothing
 : > "$CLAUDE_GUARD_STATE/opus-ok-$SID"
-expect 2 "old OK marker does not open Opus" "$(agent '"subagent_type":"general-purpose","model":"opus","prompt":"x"')"
+expect 2 "leftover marker does not open Opus" "$(agent '"subagent_type":"general-purpose","model":"opus","prompt":"x"')"
 
 rm -rf "$T"
 echo "model-guard tests: $pass passed, $fail failed"; [ "$fail" = 0 ]

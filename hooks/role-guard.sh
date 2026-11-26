@@ -1,18 +1,24 @@
 #!/bin/bash
-# Role guard (shared rules 26/11/2026h, strict roles): the front chat (Sonnet) only hands off and reports; helper-planner (Opus) plans; Sonnet builders
-# build; helper-reviewer (Opus) reviews. One script, event in $1 (PreToolUse|PostToolUse|Stop|SessionStart) or read from hook_event_name.
+# Role guard (shared rules 26/11/2026i, strict roles): the front chat (Sonnet) only hands off and reports; helper-planner (Opus) plans; Sonnet builders
+# build; helper-reviewer (Opus) reviews. One script, event in $1 (PreToolUse|SubagentStop|Stop|SessionStart) or read from hook_event_name.
 # Registered in ~/.claude/settings.json (see the kit settings.json). Bash only, no jq/python. Refuse = exit 2, reason on stderr.
-#   PostToolUse Agent|Task  helper-planner -> planner-<sid> (its reply text); helper-reviewer -> reviewed-<sid>; builder -> built-<sid>
-#                           (helper-light/medium/builder, or general-purpose on sonnet whose brief is not read-only). reviewed/built hold a
-#                           running number, so "newer" works even within one second.
-#   PreToolUse ExitPlanMode plan must equal planner-<sid> ignoring whitespace/markdown/case/punctuation.
-#   PreToolUse Edit|Write|MultiEdit|NotebookEdit  refused for the front chat (no agent_id); exempt: ~/.claude/plans/ in plan mode, memory notes.
-#   PreToolUse Bash         front chat, helper-planner, helper-reviewer: write forms refused (redirect to a file, sed -i, tee, cp, mv, rm,
-#                           git commit|merge|push|reset|checkout -b, perl -i). Read-only commands pass.
-#   Stop                    once: built-<sid> newer than reviewed-<sid> -> exit 2 (stop_hook_active true = never twice).
+#   SubagentStop            markers are recorded here (works for background helpers too), from agent_type + last_assistant_message:
+#                           helper-planner -> planner-<sid> (its reply); helper-reviewer -> reviewed-<sid>; helper-light/medium/builder ->
+#                           built-<sid>; helper-check -> checked-<sid>. Counters hold a running number, so "newer" works within one second.
+#                           PostToolUse is not used (a background start only returns "Async agent launched").
+#   PreToolUse Agent        front chat starting helper-light/medium/builder with no planner-<sid> -> refused.
+#   PreToolUse ExitPlanMode plan must equal planner-<sid> ignoring whitespace/markdown/case/punctuation (empty plan: newest plans file,
+#                           only if newer than planner-<sid>).
+#   PreToolUse Edit|Write|MultiEdit|NotebookEdit  refused for the front chat (no agent_id); exempt: ~/.claude/plans/ in plan mode,
+#                           memory notes, */handovers/*, ACTIVE.md.
+#   PreToolUse Bash|PowerShell  front chat, helper-planner, helper-reviewer: write forms refused (redirect, sed -i, tee, cp, mv, rm, touch,
+#                           mkdir, ln, python -c, git merge|reset|restore|stash|checkout -b|checkout --, perl -i; PowerShell Set-Content,
+#                           Out-File, Add-Content, New-Item, Copy-Item, Move-Item, Remove-Item). The front chat may git add/commit/push.
+#   Stop                    once: built-<sid> newer than reviewed-<sid> -> exit 2 (stop_hook_active true = never twice). Small route: planner
+#                           text contains "Size: small" and a helper-check run is newer than the last build -> passes.
 #   SessionStart            model field (documented, "not always included") not Sonnet -> warning; absent -> log only.
-# Fields from the docs (code.claude.com/docs/en/hooks): agent_id/agent_type on hooks inside a subagent; permission_mode; PostToolUse
-# tool_response.content = text blocks for Agent; SessionStart model. Anything missing falls back to allow + a line in role-guard.log.
+# Fields from the docs (code.claude.com/docs/en/hooks): agent_id/agent_type on hooks inside a subagent; SubagentStop agent_type +
+# last_assistant_message; permission_mode; SessionStart model. Anything missing falls back to allow + a line in role-guard.log.
 in=$(cat)
 d=${CLAUDE_GUARD_STATE:-$HOME/.claude/guard-state}
 field() { REPLY=; local r='(^|[^\\])"'"$1"'"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'; [[ $in =~ $r ]] && REPLY=${BASH_REMATCH[2]}; }
@@ -31,36 +37,33 @@ field agent_type; atype=$REPLY
 shopt -s nocasematch extglob
 
 case "$ev" in
-PostToolUse)
-  case "$tool" in Agent|Task) ;; *) exit 0;; esac
-  [ -n "$aid" ] && exit 0                                        # nested helper: only the front chat's own calls count
-  field subagent_type; t=$REPLY; field model; m=$REPLY
-  mkdir -p "$d" 2>/dev/null
-  case "$t" in
+SubagentStop)
+  case "$atype" in
     helper-planner)
-      rest=${in#*\"tool_response\"}; txt=
-      re='"text"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
-      while [[ $rest =~ $re ]]; do txt+=${BASH_REMATCH[1]}'\n'; rest=${rest#*"${BASH_REMATCH[0]}"}; done
-      if [ -z "$txt" ]; then log "planner reply not found in tool_response (sid $sid): not saved"; exit 0; fi
-      unjson "$txt"; printf '%s' "$REPLY" > "$d/planner-$sid" ;;
-    helper-reviewer) nextseq; echo "$REPLY" > "$d/reviewed-$sid" ;;
-    helper-light|helper-medium|helper-builder) nextseq; echo "$REPLY" > "$d/built-$sid" ;;
-    general-purpose)
-      [[ $m == *sonnet* ]] || exit 0
-      field prompt; r='read[- ]only|do not (edit|write|modify|change)|no edits|research only'
-      [[ $REPLY =~ $r ]] && exit 0
-      nextseq; echo "$REPLY" > "$d/built-$sid" ;;
+      field last_assistant_message; txt=$REPLY
+      if [ -z "$txt" ]; then log "planner reply not found (sid $sid): not saved"; exit 0; fi
+      mkdir -p "$d" 2>/dev/null; unjson "$txt"; printf '%s' "$REPLY" > "$d/planner-$sid" ;;
+    helper-reviewer) mkdir -p "$d" 2>/dev/null; nextseq; echo "$REPLY" > "$d/reviewed-$sid" ;;
+    helper-light|helper-medium|helper-builder) mkdir -p "$d" 2>/dev/null; nextseq; echo "$REPLY" > "$d/built-$sid" ;;
+    helper-check) mkdir -p "$d" 2>/dev/null; nextseq; echo "$REPLY" > "$d/checked-$sid" ;;
   esac
   exit 0 ;;
 
 PreToolUse)
   case "$tool" in
+  Agent|Task)
+    [ -n "$aid" ] && exit 0
+    field subagent_type
+    case "$REPLY" in helper-light|helper-medium|helper-builder)
+      [ -s "$d/planner-$sid" ] || refuse "Send the request to helper-planner first." ;; esac
+    exit 0 ;;
   ExitPlanMode)
     [ -n "$aid" ] && exit 0
     field plan; p=$REPLY
     if [ -z "$p" ]; then
       pf=$(ls -t "$HOME"/.claude/plans/*.md 2>/dev/null | head -1)
       [ -z "$pf" ] && { log "no plan text (sid $sid): allowed"; exit 0; }
+      if [ -f "$d/planner-$sid" ] && ! [ "$pf" -nt "$d/planner-$sid" ]; then log "plans file older than planner reply (sid $sid): allowed"; exit 0; fi
       p=$(cat "$pf")
     else unjson "$p"; p=$REPLY; fi
     [ -f "$d/planner-$sid" ] || refuse "Plans come from helper-planner word for word. Start helper-planner first."
@@ -73,10 +76,11 @@ PreToolUse)
     f=${f//\\\\//}; f=${f//\\//}
     case "$f" in
       */.claude/projects/*/memory/*) exit 0;;
+      */handovers/*|*/ACTIVE.md|ACTIVE.md) exit 0;;
       */.claude/plans/*) [ "$pm" = plan ] && exit 0;;
     esac
     refuse "the front chat doesn't edit; give it to a Sonnet builder." ;;
-  Bash)
+  Bash|PowerShell)
     if [ -n "$aid" ]; then [[ $atype == helper-@(planner|reviewer) ]] || exit 0; fi
     field command; unjson "$REPLY"; c=$REPLY
     q=$(printf '%s' "$c" | perl -0pe 's/"[^"]*"|'"'"'[^'"'"']*'"'"'//gs' 2>/dev/null) || q=$c   # drop quoted text
@@ -85,7 +89,8 @@ PreToolUse)
     [[ $q == *">"* ]] && why="a redirect to a file"
     b='(^|[;&|(`]|\$\(|xargs[[:space:]]+|-exec[[:space:]]+|sudo[[:space:]]+|then[[:space:]]+|do[[:space:]]+)[[:space:]]*'
     g='git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+'
-    r="$b(sed[[:space:]]+(-[A-Za-z]*i|--in-place)|perl[[:space:]]+-[A-Za-z]*i|tee|cp|mv|rm|${g}(commit|merge|push|reset)|${g}checkout[[:space:]]+-b)([[:space:]]|\$)"
+    gw='commit|merge|push|reset'; [ -z "$aid" ] && gw='merge|reset'      # the front chat may commit and push
+    r="$b(sed[[:space:]]+(-[A-Za-z]*i|--in-place)|perl[[:space:]]+-[A-Za-z]*i|tee|cp|mv|rm|touch|mkdir|ln|python3?[[:space:]]+-c|${g}(${gw}|restore|stash)|${g}checkout[[:space:]]+(-b|--)|(Set-Content|Out-File|Add-Content|New-Item|Copy-Item|Move-Item|Remove-Item))([[:space:]]|\$)"
     [ -z "$why" ] && [[ $q =~ $r ]] && why="a write command"
     [ -n "$why" ] && refuse "this role only reads (found $why). The front chat, helper-planner and helper-reviewer don't write; give it to a Sonnet builder."
     exit 0 ;;
@@ -97,6 +102,10 @@ Stop)
   r='"stop_hook_active"[[:space:]]*:[[:space:]]*true'; [[ $in =~ $r ]] && exit 0
   [ -f "$d/built-$sid" ] || exit 0
   seqof "$d/built-$sid"; b=$REPLY; seqof "$d/reviewed-$sid"; v=$REPLY
+  if [ "$b" -gt "$v" ]; then
+    seqof "$d/checked-$sid"; k=$REPLY; r='Size:[[:space:]]*small'
+    [ "$k" -gt "$b" ] && [ -f "$d/planner-$sid" ] && [[ $(cat "$d/planner-$sid") =~ $r ]] && exit 0
+  fi
   [ "$b" -gt "$v" ] && refuse "A builder ran after the last review: start helper-reviewer before finishing."
   exit 0 ;;
 

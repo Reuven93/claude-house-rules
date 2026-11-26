@@ -2,6 +2,8 @@
 
 Follow these steps when she says "install my rules", "update my rules" or the older "update my house rules". She is on Windows. `~` means `C:\Users\<name>`. Speak plainly (Background, Issue, Resolution).
 
+**Who copies:** the front chat is not allowed to write files (the role check refuses it), so the copying steps below (5 and the backups) are done by a `helper-builder` helper with a `REPO: <her claude-house-rules folder>` line in its brief; the front chat only shows the list and reports. Reading, comparing and the final check can be done by the front chat.
+
 **Tell her up front:** "I will ask your permission several times to copy files into your `.claude` folder. Please say Yes each time."
 
 1. **Get the latest kit.** Detect which shell you have. In PowerShell: if `~\claude-house-rules` exists run `git -C "$HOME\claude-house-rules" pull`, otherwise run `git clone https://github.com/Reuven93/claude-house-rules "$HOME\claude-house-rules"`. In Git Bash: the same commands with `~/claude-house-rules`. If the pull fails because files in that folder were edited, show her which files, keep her edits out of the way with `git -C <folder> stash` (tell her they are saved there), and pull again. The repo is public: no GitHub account or sign-in is needed. If git is missing, install it for her with `winget install --id Git.Git -e` (ask her OK first), then continue.

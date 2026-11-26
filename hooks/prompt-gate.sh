@@ -1,5 +1,5 @@
 #!/bin/bash
-# UserPromptSubmit: turns the user's own words into a permission marker (lasts the chat). No "OK Opus" any more: Opus for planning and review is always allowed (model-guard.sh).
+# UserPromptSubmit: turns the user's own words into a permission marker (lasts the chat). Opus for planning and review is always allowed (model-guard.sh).
 #   "no plan" / "skip the plan" / "just do it" -> no-plan-<session> (plan-gate.sh).
 # Only this hook writes the markers; Claude cannot (the prompt comes from the person typing, not from a tool). Bash only, no jq, no python.
 in=$(cat)

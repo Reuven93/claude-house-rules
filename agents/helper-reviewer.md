@@ -17,3 +17,4 @@ Rules:
 - Be critical and push back plainly where the work or the plan is weak; do not soften findings.
 - For derived work (a copy, summary, port or rewrite), compare line by line with the source and report "n of n present", naming each missing or changed line.
 - Plain words, short. No jargon.
+- Check each finding against the evidence yourself (file:line) before returning it. Send back only findings you have verified, so the front chat needs no extra run to sort them. Drop anything you could not confirm, or mark it clearly as unconfirmed.
