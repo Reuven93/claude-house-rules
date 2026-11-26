@@ -12,7 +12,7 @@ This is a small kit that sets up Claude Code on your Windows PC the way it works
 Clone https://github.com/Reuven93/claude-house-rules into a folder called claude-house-rules in my home folder, then follow its INSTALL.md
 ```
 
-5. The first time, a GitHub sign-in window opens in your browser: sign in with the account that got the invite. Claude then shows you a short list of what it will change and asks permission several times to copy files into `.claude`. Say Yes. It backs up anything it replaces (as `.bak` files).
+5. The first time, a GitHub sign-in window opens in your browser: sign in with the account that got the invite. Claude then shows you a short list of what it will change and asks permission several times to copy files into `.claude`. Say Yes. It backs up anything it replaces (in `.claude\house-rules-backup\`).
 6. Start a new chat. The rules are now active.
 
 ## Updating later
