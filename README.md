@@ -1,4 +1,4 @@
-# Your Claude Code house rules
+# Your Claude Code rules
 
 This is a small kit that sets up Claude Code on your Windows PC the way it works best for building apps and claude.ai artifacts: it makes a plan before it builds, uses helpers working in parallel, checks its own work with an independent review, keeps handover notes so a new chat can carry on, and talks to you in short, plain sentences. It is a set of rules, two skills, six helper types and a few settings.
 
@@ -16,13 +16,13 @@ My husband set up rules for how you should work for me. Clone https://github.com
 Open Claude Code and say:
 
 ```text
-update my house rules
+update my rules
 ```
 
-Claude pulls the newest version, shows you what changes, waits for your OK, then installs it. Start a new chat afterwards.
+(Saying "update my house rules" also works.) Claude pulls the newest version, shows you what changes, waits for your OK, then installs it. Start a new chat afterwards.
 
 ## Your own rules
-Add your own rules to `~/.claude/CLAUDE.md` (in `C:\Users\<your name>\.claude\`) under the heading "My own rules". Updates never touch that section; they only replace the kit's `house-rules.md`.
+Add your own rules to `~/.claude/CLAUDE.md` (in `C:\Users\<your name>\.claude\`) under the heading "My own rules". Updates never touch that section; they only replace the kit's `shared-rules.md`.
 
 ## What it changes in your settings
 It sets the model to `opusplan` (Opus plans, Sonnet builds), limits how many helpers run at once, and makes helpers default to Sonnet. Everything else in your settings stays as it is.
