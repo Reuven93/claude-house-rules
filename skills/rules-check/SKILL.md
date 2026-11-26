@@ -18,4 +18,4 @@ Never keep a copy of the rules in this skill; always read the live ones.
    - Handover current and saved at each break.
    - Replies short, plain, Background, Issue, Resolution; commands given paste-ready with the window named.
    - Rule changes got the Anthropic docs check.
-3. Reply in 1-3 lines: the version line from the top of `house-rules.md` (e.g. "House rules version 26/11/2026a"), what slipped (if anything) and the fix being applied now. Name any "My own rules" entry or project rule that overrides a house rule. Then apply the fixes and carry on. Do not start unrelated tidying.
+3. Reply in 1-3 lines: the version line from the top of `house-rules.md` and the version line (if any) in "My own rules" (e.g. "House rules version 26/11/2026b"), what slipped (if anything) and the fix being applied now. Name any "My own rules" entry or project rule that overrides a house rule. Then apply the fixes and carry on. Do not start unrelated tidying.
