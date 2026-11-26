@@ -21,6 +21,8 @@ shopt -s nocasematch
 if [ "$tool" = ExitPlanMode ]; then
   if [ "$ev" = PostToolUse ]; then mkdir -p "$d" 2>/dev/null; : > "$d/plan-ok-$sid"; exit 0; fi
   field plan; p=$REPLY
+  if [ -z "$p" ]; then pf=$(ls -t "$HOME"/.claude/plans/*.md 2>/dev/null | head -1); [ -n "$pf" ] && p=$(cat "$pf"); fi
+  [ -z "$p" ] && exit 0                                          # no plan text found: never lock plan mode
   miss=
   [[ $p == *"review:"* ]] || miss="$miss"$'\n'"- a \"Review:\" line (what will be checked, by which reviewer)"
   if [[ $p == *builders* || $p == *build* || $p == *implement* || $p == *"edit "* || $p == *"create file"* ]]; then
@@ -40,7 +42,7 @@ field permission_mode; [ "$REPLY" = plan ] && exit 0             # plan mode: pl
 f=; r='"(file_path|notebook_path)"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'; [[ $in =~ $r ]] && f=${BASH_REMATCH[2]}
 f=${f//\\\\//}; f=${f//\\//}                                      # JSON-escaped or plain backslashes -> /
 case "$f" in
-  */handovers/*|*/memory/*|*/.claude/plans/*|*scratchpad*|/tmp/*|/private/tmp/*|*/AppData/Local/Temp/*|ACTIVE.md|*/ACTIVE.md|*/.claude/projects/*.md) exit 0;;
+  */.claude/*|*/handovers/*|*/memory/*|*/.claude/plans/*|*scratchpad*|/tmp/*|/private/tmp/*|*/AppData/Local/Temp/*|ACTIVE.md|*/ACTIVE.md|*/.claude/projects/*.md) exit 0;;
 esac
 # chat started as a continuation: the first user message in the transcript
 field transcript_path; t=${REPLY//\\\\//}; t=${t//\\//}

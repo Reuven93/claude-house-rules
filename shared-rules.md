@@ -1,6 +1,6 @@
 # Shared rules for every Claude chat (shared core)
 
-**Shared rules version 26/11/2026c.** One file shared by everyone who uses the kit (`Reuven93/claude-house-rules`); it holds only rules that fit any person and machine. Installed as `~/.claude/shared-rules.md` and loaded by an `@shared-rules.md` line in `~/.claude/CLAUDE.md`. Everything specific to me (my machine and paths, my helper names, my systems, my extra guards) lives in that file under "My own rules"; those win over these, and updates never touch them. My newest instruction wins. To change a general rule, change it here once; never copy it into a personal file.
+**Shared rules version 26/11/2026d.** One file shared by everyone who uses the kit (`Reuven93/claude-house-rules`); it holds only rules that fit any person and machine. Installed as `~/.claude/shared-rules.md` and loaded by an `@shared-rules.md` line in `~/.claude/CLAUDE.md`. Everything specific to me (my machine and paths, my helper names, my systems, my extra guards) lives in that file under "My own rules"; those win over these, and updates never touch them. My newest instruction wins. To change a general rule, change it here once; never copy it into a personal file.
 When I say "follow the rules", "rules check" or ask whether you are applying my rules (shared rules, house rules, optimal rule set): run the `rules-check` skill (audit this chat, 1-3 line answer with the version dates of this file and of my own rules, fix slips, start nothing else).
 
 ## 1. How work is run
@@ -49,6 +49,7 @@ My machine, its paths and the shell I paste commands into are described in my ow
 
 ## 7. Handovers and finishing
 - Handover notes live in `<project>/handovers/<task>.md` (format: `handover` skill). Open tasks are listed in an `ACTIVE.md` (its place is in my own rules). One writer per file.
+- When I say "update my rules" (or "update my house rules"): pull the `claude-house-rules` folder in my home folder (clone it from https://github.com/Reuven93/claude-house-rules if missing) and follow its INSTALL.md.
 - Start of a chat on existing work: read its handover and start from **Next step**. Every handover's Next step says which pieces can run at once, so the next chat does the same.
 - Every stop before done: handover updated, committed, pushed, then give me `Carry on from <full handover path>`.
 - Finish tidy: committed and pushed, merged worktrees and branches deleted, no temp files, handover current; say what was tidied in 1-2 lines.

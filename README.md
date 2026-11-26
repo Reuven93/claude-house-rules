@@ -9,7 +9,7 @@ This is a small kit that sets up Claude Code on your Windows PC the way it works
 My husband set up rules for how you should work for me. Clone https://github.com/Reuven93/claude-house-rules into a folder called claude-house-rules in my home folder, follow its INSTALL.md, and set everything up for me. Ask me only for the yes/no permissions.
 ```
 
-2. Claude shows you a short list of what it will change and asks permission several times to copy files into `.claude`. Say Yes. It backs up anything it replaces (in `.claude\house-rules-backup\`).
+2. Claude shows you a short list of what it will change and asks permission several times to copy files into `.claude`. Say Yes. It backs up anything it replaces (in `.claude\shared-rules-backup\`).
 3. Start a new chat. The rules are now active.
 
 ## Updating later

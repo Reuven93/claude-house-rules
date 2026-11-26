@@ -25,7 +25,7 @@
       { "hooks": [
         { "type": "command", "command": "bash \"$HOME/.claude/hooks/reply-check.sh\"" },
         { "type": "prompt",
-          "prompt": "Input is $ARGUMENTS. If stop_hook_active is true, return {\"ok\":true}. Otherwise check the final reply (last_assistant_message) for: (1) a plain, short answer (Background, Issue, Resolution); (2) any command the user must run is in its own code block, with which window it goes in and one line on what it does; (3) it does not end with a bare question; (4) it does not claim something works or is done without saying how it was checked. Return {\"ok\":false,\"reason\":\"<what to fix, in one sentence>\"} only for a clear failure, otherwise return {\"ok\":true}.",
+          "prompt": "Input is $ARGUMENTS. If stop_hook_active is true, return {\"ok\":true}. Otherwise check the final reply (last_assistant_message) for: (1) a plain, short answer (Background, Issue, Resolution); (2) any command the user must run is in its own code block, with which window it goes in and one line on what it does; (3) it does not end with a bare question (asking for her OK or yes/no permission is fine); (4) it does not claim something works or is done without saying how it was checked. Return {\"ok\":false,\"reason\":\"<what to fix, in one sentence>\"} only for a clear failure, otherwise return {\"ok\":true}.",
           "timeout": 30 }
       ] }
     ]
