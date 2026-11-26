@@ -3,17 +3,14 @@
 This is a small kit that sets up Claude Code on your Windows PC the way it works best for building apps and claude.ai artifacts: it makes a plan before it builds, uses helpers working in parallel, checks its own work with an independent review, keeps handover notes so a new chat can carry on, and talks to you in short, plain sentences. It is a set of rules, two skills, six helper types and a few settings.
 
 ## One-time setup
-1. Create a free GitHub account if you don't have one, and send Reuven your GitHub username.
-2. Accept the invitation email from GitHub within 7 days.
-3. Install Git for Windows if you don't have it: https://git-scm.com/download/win (accept the defaults). Claude Code on Windows needs it.
-4. Open Claude Code in any folder and paste this one line:
+1. Open Claude Code in any folder and paste this message (no GitHub account or sign-in needed):
 
 ```text
-Clone https://github.com/Reuven93/claude-house-rules into a folder called claude-house-rules in my home folder, then follow its INSTALL.md
+My husband set up rules for how you should work for me. Clone https://github.com/Reuven93/claude-house-rules into a folder called claude-house-rules in my home folder, follow its INSTALL.md, and set everything up for me. Ask me only for the yes/no permissions.
 ```
 
-5. The first time, a GitHub sign-in window opens in your browser: sign in with the account that got the invite. Claude then shows you a short list of what it will change and asks permission several times to copy files into `.claude`. Say Yes. It backs up anything it replaces (in `.claude\house-rules-backup\`).
-6. Start a new chat. The rules are now active.
+2. Claude shows you a short list of what it will change and asks permission several times to copy files into `.claude`. Say Yes. It backs up anything it replaces (in `.claude\house-rules-backup\`).
+3. Start a new chat. The rules are now active.
 
 ## Updating later
 Open Claude Code and say:

@@ -4,11 +4,7 @@ Follow these steps when she says "install my house rules" or "update my house ru
 
 **Tell her up front:** "I will ask your permission several times to copy files into your `.claude` folder. Please say Yes each time."
 
-1. **Get the latest kit.** Detect which shell you have. In PowerShell: if `~\claude-house-rules` exists run `git -C "$HOME\claude-house-rules" pull`, otherwise run `git clone https://github.com/Reuven93/claude-house-rules "$HOME\claude-house-rules"`. In Git Bash: the same commands with `~/claude-house-rules`. If the pull fails because files in that folder were edited, show her which files, keep her edits out of the way with `git -C <folder> stash` (tell her they are saved there), and pull again. If git is missing, tell her to install Git for Windows (https://git-scm.com/download/win) and stop. If the download waits on a GitHub sign-in (or fails asking for one), stop and give her the clone command to paste into PowerShell herself (a sign-in window opens in her browser; she signs in with the account that got the invite), then continue once it has finished:
-
-   ```text
-   git clone https://github.com/Reuven93/claude-house-rules "$HOME\claude-house-rules"
-   ```
+1. **Get the latest kit.** Detect which shell you have. In PowerShell: if `~\claude-house-rules` exists run `git -C "$HOME\claude-house-rules" pull`, otherwise run `git clone https://github.com/Reuven93/claude-house-rules "$HOME\claude-house-rules"`. In Git Bash: the same commands with `~/claude-house-rules`. If the pull fails because files in that folder were edited, show her which files, keep her edits out of the way with `git -C <folder> stash` (tell her they are saved there), and pull again. The repo is public: no GitHub account or sign-in is needed. If git is missing, install it for her with `winget install --id Git.Git -e` (ask her OK first), then continue.
 2. **Compare** each kit file with the installed one (a missing file counts as "new"):
 
    | Kit file | Installed at |
