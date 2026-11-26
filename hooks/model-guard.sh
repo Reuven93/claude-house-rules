@@ -1,14 +1,14 @@
 #!/bin/bash
 # PreToolUse (Agent | Task | Workflow | start_session | set_session_model | set_session_effort): every helper gets a deliberately
-# chosen model and level, never Fable, and Opus only for helper-planner / helper-reviewer (shared rules, ).
+# chosen model and level, never Fable, and Opus only for helper-planner / helper-reviewer (shared rules).
 #   - Fable: always refused.
 #   - Opus: only helper-planner / helper-reviewer (with a TIER 3-4 line, no OK needed); everything else is refused.
-#     A session on "opusplan" is NOT Opus (it uses Opus only while planning). No OK Opus mechanism exists any more.
+#     A session on "opusplan" is NOT Opus (it uses Opus only while planning).
 #   - Agent/Task: a model (helper-* type or model param) is required, except the utility types. A TIER line is required only
 #     for Opus / high effort (must be 3-4). Sonnet/Haiku is allowed at every TIER (all building runs on Sonnet; the planner diagnoses first). TIERs: 0 look-ups, 1 research/simple edits, 2 clear builds up to 3 files, no money,
 #     3 money/rates/billing/credit notes/totals, 4 unknown cause/wrong numbers/messy code.
 # Refuse = exit 2 with the reason on stderr (Claude sees it). Reminder = JSON additionalContext. No jq; bash only.
-# Registered in ~/.claude/settings.json (all machines) and the workspace repo's .claude/settings.json (cloud).
+# Registered in ~/.claude/settings.json (see settings.json in the kit).
 in=$(cat)  # $(</dev/stdin) reads nothing from the app's pipe on Windows (found 13/11); cat works on both
 tool=; re='"tool_name"[[:space:]]*:[[:space:]]*"([^"]+)"'; [[ $in =~ $re ]] && tool=${BASH_REMATCH[1]}
 # A top-level JSON string field of tool_input (not one quoted inside a prompt, where quotes are escaped as \")
@@ -23,7 +23,7 @@ case "$tool" in *set_session_model|*set_session_effort)
   grep -qs -F " tool=$tool" "$gd/model-guard.log" || printf '%s session-model tool fired: tool=%s\n' "$(date +%FT%T)" "$tool" >> "$gd/model-guard.log" 2>/dev/null ;;
 esac
 isopus() { [[ $1 == *opus* && $1 != *opusplan* ]]; }  # opusplan = Opus only while planning, so not Opus here
-NOOPUS="Opus is only for helper-planner and helper-reviewer (strict roles, ). Everything else runs on Sonnet or Haiku."
+NOOPUS="Opus is only for helper-planner and helper-reviewer (strict roles). Everything else runs on Sonnet or Haiku."
 NEEDTIER="Opus, planner/reviewer or high effort needs a TIER 3 or 4 line in the brief. For smaller work use Sonnet; otherwise raise the TIER."
 # Opus (model or helper-careful/heavy) or effort high/xhigh/max asked for: the brief's TIER line must be 3 or 4. $1=model $2=type $3=effort
 tier_ok() {
@@ -33,8 +33,6 @@ tier_ok() {
 }
 case "$tool" in
   Agent|Task)
-    r='(\\n|"prompt"[[:space:]]*:[[:space:]]*")[[:space:]]*ROLE:[[:space:]]*test-runner'
-    [[ $in =~ $r ]] && { mkdir -p "${CLAUDE_GUARD_STATE:-$HOME/.claude/guard-state}" 2>/dev/null; : > "${CLAUDE_GUARD_STATE:-$HOME/.claude/guard-state}/test-runner-any"; }
     field model; m=$REPLY; field subagent_type; t=$REPLY
     [[ $m == *fable* ]] && refuse "never use Fable for a helper. Use sonnet (research, checks), haiku (simple lookups, kit runs)."
     [[ $t == *fable* ]] && refuse "the helper-fable worker is off: Fable is never used on agents. Use helper-scout (Sonnet) or helper-check (Haiku)."

@@ -1,7 +1,7 @@
 #!/bin/bash
 # UserPromptSubmit: turns the user's own words into a permission marker (lasts the chat). Opus for planning and review is always allowed (model-guard.sh).
 #   "no plan" / "skip the plan" / "just do it" -> no-plan-<session> (plan-gate.sh).
-#   "role guard off" -> role-off-<session>; "update my rules" / "install my rules" -> rules-update-<session> (role-guard.sh).
+#   "role guard off" -> role-off-<session>; "update my rules" / "install my rules" (also "house rules", not when negated) -> rules-update-<session> (role-guard.sh).
 # Only this hook writes the markers; Claude cannot (the prompt comes from the person typing, not from a tool). Bash only, no jq, no python.
 in=$(cat)
 r='"session_id"[[:space:]]*:[[:space:]]*"([^"]*)"'; sid=; [[ $in =~ $r ]] && sid=${BASH_REMATCH[1]//[^A-Za-z0-9-]/}
@@ -21,5 +21,11 @@ p=" ${p//[^A-Za-z0-9]/ } "; p=$(printf '%s' "$p" | tr -s ' ' | tr 'A-Z' 'a-z')  
 if [[ $p == *" no plan "* || $p == *" skip the plan "* || $p == *" just do it "* ]]; then : > "$d/no-plan-$sid"; fi
 # Role guard: "role guard off" lifts the role rules for this chat; "update my rules" / "install my rules" allows the rules-update steps
 if [[ $p == *" role guard off "* ]]; then : > "$d/role-off-$sid"; fi
-if [[ $p == *" update my rules "* || $p == *" install my rules "* ]]; then : > "$d/rules-update-$sid"; fi
+# Only when not negated: skip if "don't" / "do not" / "not" (also "never") sits in the words before the phrase.
+for ph in "update my rules" "install my rules" "update my house rules" "install my house rules"; do
+  if [[ $p == *" $ph "* ]]; then
+    pre=${p%% $ph *}
+    [[ " $pre " == *" don t "* || " $pre " == *" dont "* || " $pre " == *" do not "* || " $pre " == *" not "* || " $pre " == *" never "* ]] || : > "$d/rules-update-$sid"
+  fi
+done
 exit 0

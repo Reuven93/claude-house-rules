@@ -10,7 +10,7 @@
       { "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/prompt-gate.sh\"" } ] }
     ],
     "PreToolUse": [
-      { "matcher": "Agent|Task|mcp__ccd_session__start_session|mcp__ccd_session_mgmt__set_session_model|mcp__ccd_session_mgmt__set_session_effort",
+      { "matcher": "Agent|Task|Workflow|mcp__ccd_session__start_session|mcp__ccd_session_mgmt__set_session_model|mcp__ccd_session_mgmt__set_session_effort",
         "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/model-guard.sh\"" } ] },
       { "matcher": "ExitPlanMode|Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/plan-gate.sh\"" } ] },
