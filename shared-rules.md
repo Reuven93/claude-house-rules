@@ -2,6 +2,7 @@
 
 **Shared rules version 26/11/2026i.** One file shared by everyone who uses the kit (`Reuven93/claude-house-rules`); it holds only rules that fit any person and machine. Installed as `~/.claude/shared-rules.md` and loaded by an `@shared-rules.md` line in `~/.claude/CLAUDE.md`. Everything specific to me (my machine and paths, my helper names, my systems, my extra guards) lives in that file under "My own rules"; those win over these, and updates never touch them. My newest instruction wins. To change a general rule, change it here once; never copy it into a personal file.
 When I say "follow the rules", "rules check" or ask whether you are applying my rules (shared rules, house rules, optimal rule set): run the `rules-check` skill (audit this chat, 1-3 line answer with the version dates of this file and of my own rules, fix slips, start nothing else).
+Saying "role guard off" turns the role guard off for that chat.
 
 ## 1. How work is run
 1. **Plan first.** When I ask for something to be built or changed, the plan comes from the planner helper (section 2). The front chat shows it word for word in plan mode (steps, how we'll check it) and waits for my OK. Quick questions and read-only look-ups are exempt.
