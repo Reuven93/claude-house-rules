@@ -1,6 +1,6 @@
 # Your Claude Code rules
 
-This is a small kit that sets up Claude Code on your Windows PC the way it works best for building apps and claude.ai artifacts: it makes a plan before it builds, uses helpers working in parallel, checks its own work with an independent review, keeps handover notes so a new chat can carry on, and talks to you in short, plain sentences. It is a set of rules, two skills, six helper types and a few settings.
+This is a small kit that sets up Claude Code on your Windows PC the way it works best for building apps and claude.ai artifacts: it makes a plan before it builds, uses helpers working in parallel, checks its own work with an independent review, keeps handover notes so a new chat can carry on, and talks to you in short, plain sentences. It is a set of rules, two skills, seven helper types, automatic checks and a few settings.
 
 ## One-time setup
 1. Open Claude Code in any folder and paste this message (no GitHub account or sign-in needed):
@@ -25,7 +25,12 @@ update my rules
 Add your own rules to `~/.claude/CLAUDE.md` (in `C:\Users\<your name>\.claude\`) under the heading "My own rules". Updates never touch that section; they only replace the kit's `shared-rules.md`.
 
 ## What it changes in your settings
-It sets the model to `opusplan` (Opus plans, Sonnet builds), limits how many helpers run at once, and makes helpers default to Sonnet. Everything else in your settings stays as it is.
+It sets the model to `sonnet` (see below), limits how many helpers run at once, and makes helpers default to Sonnet. Everything else in your settings stays as it is.
+
+## How the work is split (Sonnet front chat)
+The chat you talk to runs on **Sonnet**. It only hands your request on and reports back. Every request goes to a background **planner** (Opus), which makes the plan and pushes back plainly where it disagrees with you. Background **builders** (Sonnet) then do the building, and a background **reviewer** (Opus) checks the result and is critical too. The front chat shows the plan and the review word for word and adds no opinion of its own. Opus is used only for planning and review, so you never need to approve it. Testing runs on Haiku or Sonnet alongside the other pieces.
+
+Pick Sonnet in the desktop app's model picker (in the terminal: `/model sonnet`); the desktop app does not accept `opusplan`. If the front chat is on another model, you will get a warning at the start of the chat. Automatic checks enforce this: the front chat cannot edit files, only the planner and reviewer can use Opus, and the work cannot finish while a build is unreviewed. Helpers: `helper-planner`, `helper-reviewer`, `helper-builder` (for other repos), `helper-light`, `helper-medium`, `helper-scout`, `helper-check`. The old `helper-careful` and `helper-heavy` are retired.
 
 ## "Follow the rules"
 If Claude drifts (long answers, no plan, jumping straight into building), say **"follow the rules"**. It re-reads your rules, checks what it has done so far, tells you in 1-3 lines what slipped, fixes it and carries on.

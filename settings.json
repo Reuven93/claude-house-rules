@@ -1,5 +1,5 @@
 {
-  "model": "opusplan",
+  "model": "sonnet",
   "env": {
     "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "6",
     "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1",
@@ -13,9 +13,16 @@
       { "matcher": "Agent|Task|mcp__ccd_session__start_session",
         "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/model-guard.sh\"" } ] },
       { "matcher": "ExitPlanMode|Edit|Write|MultiEdit|NotebookEdit",
-        "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/plan-gate.sh\"" } ] }
+        "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/plan-gate.sh\"" } ] },
+      { "matcher": "ExitPlanMode|Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/role-guard.sh\"" } ] }
+    ],
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/role-guard.sh\"" } ] }
     ],
     "PostToolUse": [
+      { "matcher": "Agent|Task",
+        "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/role-guard.sh\"" } ] },
       { "matcher": "ExitPlanMode",
         "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/plan-gate.sh\"" } ] },
       { "matcher": "Edit|Write|MultiEdit|NotebookEdit",
@@ -24,6 +31,7 @@
     "Stop": [
       { "hooks": [
         { "type": "command", "command": "bash \"$HOME/.claude/hooks/reply-check.sh\"" },
+        { "type": "command", "command": "bash \"$HOME/.claude/hooks/role-guard.sh\"" },
         { "type": "prompt",
           "prompt": "Input is $ARGUMENTS. If stop_hook_active is true, return {\"ok\":true}. Otherwise check the final reply (last_assistant_message) for: (1) a plain, short answer (Background, Issue, Resolution; her own words such as handover, plan, review, helper, rules are fine, only flag Claude Code internals); (2) any command the user must run is in its own code block, with which window it goes in and one line on what it does; (3) it does not end with a bare question (asking for her OK or yes/no permission is fine); (4) it does not claim something works or is done without saying how it was checked. Return {\"ok\":false,\"reason\":\"<what to fix, in one sentence>\"} only for a clear failure, otherwise return {\"ok\":true}.",
           "timeout": 30 }

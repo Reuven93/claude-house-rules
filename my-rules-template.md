@@ -7,4 +7,4 @@ Use Windows paths. `~` means `C:\Users\<my name>`.
 - **Handovers:** `<project>\handovers\<task>.md`; open tasks in `<project>\handovers\ACTIVE.md`.
 
 ### Helper names
-My helpers are named `helper-<role>`: `helper-light`, `helper-medium`, `helper-scout`, `helper-check`, `helper-careful`, `helper-heavy`.
+My helpers are named `helper-<role>`: `helper-planner`, `helper-reviewer`, `helper-builder`, `helper-light`, `helper-medium`, `helper-scout`, `helper-check`.

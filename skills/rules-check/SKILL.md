@@ -9,11 +9,12 @@ Never keep a copy of the rules in this skill; always read the live ones.
 
 1. Read the live rules: `~/.claude/shared-rules.md` and `~/.claude/CLAUDE.md` (on Windows `C:\Users\<name>\.claude\`; the second holds "My own rules", which win over the shared rules), plus the current project's `CLAUDE.md` if there is one.
 2. Audit what this chat has done so far. Mark each pass, slip or not-applicable:
-   - Plan shown and OK'd before building.
+   - Front chat on Sonnet; it only handed work on and reported (no planning, building or reviewing itself).
+   - Plan came from the planner helper, shown word for word, and OK'd before building.
    - Handover check done in the plan (the handover skill's "before building" step).
    - Builders table in the plan; independent pieces started in one message, up to 3-4, own worktree each.
-   - Helper models fit the work; Opus helpers only after my "OK Opus"; Fable never used.
-   - Plan and deliverable reviewed before shown (docs check if Claude Code; fresh reviewer given my own words; findings checked; derived work line-by-line)?
+   - Helper models fit the work; Opus only in the planner and reviewer helpers; Fable never used.
+   - Plan and deliverable reviewed by the reviewer helper before shown, its review reported word for word with no added opinion (docs check if Claude Code; my own words given; derived work line-by-line)?
    - Tests only for what changed.
    - Handover current and saved at each break.
    - Replies short, plain, Background, Issue, Resolution; commands given paste-ready with the window named.
