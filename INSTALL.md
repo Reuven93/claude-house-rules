@@ -1,21 +1,30 @@
 # Install or update the house rules (instructions for Claude Code)
 
-Follow these steps when she says "install my house rules" or "update my house rules". She is on Windows. `~` means `C:\Users\<name>`. Use PowerShell for commands unless she says Git Bash. Speak plainly (Background, Issue, Resolution).
+Follow these steps when she says "install my house rules" or "update my house rules". She is on Windows. `~` means `C:\Users\<name>`. Speak plainly (Background, Issue, Resolution).
 
-1. **Get the latest kit.** If `~\claude-house-rules` exists, run `git -C "$HOME\claude-house-rules" pull`. If not, run `git clone https://github.com/Reuven93/claude-house-rules "$HOME\claude-house-rules"` (PowerShell; in Git Bash use `~/claude-house-rules`). If git is missing, tell her to install Git for Windows (https://git-scm.com/download/win) and stop. If it asks her to sign in, tell her to accept the GitHub invite and sign in, then stop. If Claude Code says it cannot find Git Bash, set `CLAUDE_CODE_GIT_BASH_PATH` to the `bash.exe` path in her settings (see the Claude Code setup docs).
+**Tell her up front:** "I will ask your permission several times to copy files into your `.claude` folder. Please say Yes each time."
+
+1. **Get the latest kit.** Detect which shell you have. In PowerShell: if `~\claude-house-rules` exists run `git -C "$HOME\claude-house-rules" pull`, otherwise run `git clone https://github.com/Reuven93/claude-house-rules "$HOME\claude-house-rules"`. In Git Bash: the same commands with `~/claude-house-rules`. If git is missing, tell her to install Git for Windows (https://git-scm.com/download/win) and stop. If the download waits on a GitHub sign-in (or fails asking for one), stop and give her the clone command to paste into PowerShell herself (a sign-in window opens in her browser; she signs in with the account that got the invite), then continue once it has finished:
+
+   ```text
+   git clone https://github.com/Reuven93/claude-house-rules "$HOME\claude-house-rules"
+   ```
 2. **Compare** each kit file with the installed one (a missing file counts as "new"):
 
    | Kit file | Installed at |
    |---|---|
-   | `CLAUDE.md` | `~\.claude\CLAUDE.md` |
+   | `house-rules.md` | `~\.claude\house-rules.md` (replaced on update, with backup) |
    | `skills\handover\SKILL.md`, `skills\handover\TEMPLATE.md` | `~\.claude\skills\handover\` |
    | `skills\rules-check\SKILL.md` | `~\.claude\skills\rules-check\` |
    | `agents\helper-*.md` (6 files) | `~\.claude\agents\` |
    | `settings.json` | `~\.claude\settings.json` (merge, step 5) |
 
-   Do not touch other files in `~\.claude`, and do not delete anything there.
-3. **Show her a short plain list** of what will change: for each file "new", "changed" (one line on what differs, e.g. the new house-rules version) or "same". If nothing differs, say "You are up to date" and stop. If her installed `CLAUDE.md` has rules that are not in the kit, mention them in one line, because replacing the file removes them.
+   `~\.claude\CLAUDE.md` is HERS and is not a kit file: it is handled in step 5. Do not touch other files in `~\.claude`, and do not delete anything there.
+3. **Show her a short plain list** of what will change: for each file "new", "changed" (one line on what differs, e.g. the new house-rules version) or "same". Also say what will happen to her `CLAUDE.md` (see step 5). If nothing differs and her `CLAUDE.md` already has the `@house-rules.md` line, say "You are up to date" and stop.
 4. **Wait for her OK.** Do nothing before it.
-5. **Apply.** For each new or changed file: if an installed file exists, copy it to `<name>.bak` in the same folder (overwrite an older `.bak`); create folders if needed; then copy the kit file over it. For `settings.json`: read her installed file (create `{}` if missing), set only `"model": "opusplan"` and the two `env` keys (`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`) from the kit's `settings.json`, keep every other key (including other `env` keys and any `hooks`) exactly as is, and back up first as `settings.json.bak`. Valid JSON only.
-6. **Check:** run `claude --version`; the helper limit setting needs 2.1.217 or later, so if it is older tell her to update Claude Code. List the installed files, confirm `settings.json` still parses, and report in 1-3 lines what was installed and the version line from `CLAUDE.md`.
+5. **Apply.**
+   - **Kit files:** for each new or changed file, if an installed file exists copy it to `<file>.bak` in the same folder (exactly that name, e.g. `house-rules.md.bak`, `helper-light.md.bak`; never `.bak.md`, which would load as an extra rules or helper file; overwrite an older `.bak`); create folders if needed; then copy the kit file over it.
+   - **Her `CLAUDE.md`:** it must contain the line `@house-rules.md` at the very top and a `## My own rules` section. If she has no `CLAUDE.md`, create one with just those two. First install with an existing `CLAUDE.md`: show it to her, and with her OK move its content under `## My own rules` (keep a dated copy first, e.g. `CLAUDE.md.2026-11-26.bak`). On later updates only add the `@house-rules.md` line if it is missing; never touch the `## My own rules` section or anything she wrote.
+   - **`settings.json`:** read her installed file (create `{}` if missing), set only `"model": "opusplan"` and the three `env` keys (`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`, `CLAUDE_CODE_SUBAGENT_MODEL` = `"sonnet"`, which makes helpers that don't name a model run on Sonnet, not Opus; helpers that name their own model keep it) from the kit's `settings.json`, keep every other key (including other `env` keys and any `hooks`) exactly as is, and back up first as `settings.json.bak`. Valid JSON only.
+6. **Check:** run `claude --version`; the helper limit setting needs 2.1.217 or later, so if it is older tell her to update Claude Code. List the installed files, confirm `settings.json` still parses, and report in 1-3 lines what was installed and the version line from `house-rules.md`.
 7. **Tell her:** "Start a new chat so the new rules load." Then stop.
