@@ -25,4 +25,4 @@
 - <item or "none">
 
 ## Next step
-<one concrete action the next chat starts with, written so the resume prompt is enough>
+<one concrete action the next chat starts with, written so the resume prompt is enough, and which pieces can run at the same time>
