@@ -80,9 +80,27 @@ reset
 sub helper-medium done | bash "$H/role-guard.sh"
 expect 2 "built, not reviewed: no new builder" "$(agentstart helper-medium)"
 sub helper-reviewer ok | bash "$H/role-guard.sh"
-expect 0 "reviewed after built: builder allowed" "$(agentstart helper-medium)"
-sub helper-light done | bash "$H/role-guard.sh"
-expect 2 "built after review again" "$(agentstart helper-medium)"
+expect 2 "reviewed after built but no plan-ok: still closed" "$(agentstart helper-medium)"
+touch "$CLAUDE_GUARD_STATE/plan-ok-$S"
+expect 0 "reviewed after built + plan-ok: builder allowed" "$(agentstart helper-medium)"
+sub helper-planner 'Plan two. Size: large' | bash "$H/role-guard.sh"; touch -t 203001010000 "$CLAUDE_GUARD_STATE/planner-$S"
+expect 2 "new planner reply needs a new OK" "$(agentstart helper-medium)"
+reset; touch "$CLAUDE_GUARD_STATE/plan-ok-$S"
+sub helper-reviewer ok | bash "$H/role-guard.sh"
+expect 2 "reviewer ran before any build: gate stays closed" "$(agentstart helper-medium)"
+reset; touch -t 202001010000 "$CLAUDE_GUARD_STATE/rules-update-$S"
+expect 2 "rules-update marker older than 30 minutes ignored" "$(agentstart helper-medium)"
+grep -q 'role guard off' "$T/err" && ok || bad "refusal lacks 'role guard off' hint"
+reset
+sendm() { printf '{"session_id":"%s","hook_event_name":"PreToolUse","tool_name":"SendMessage","tool_input":{"to":"%s","message":"go"}}' "$S" "$1"; }
+subid() { printf '{"session_id":"%s","agent_id":"%s","agent_type":"%s","hook_event_name":"SubagentStop","last_assistant_message":"done"}' "$S" "$1" "$2"; }
+subid bld1 helper-medium | bash "$H/role-guard.sh"; subid pln1 helper-planner | bash "$H/role-guard.sh"; subid rev1 helper-reviewer | bash "$H/role-guard.sh"
+subid sco1 helper-scout | bash "$H/role-guard.sh"; subid chk1 helper-check | bash "$H/role-guard.sh"
+expect 2 "SendMessage to builder without plan" "$(sendm bld1)"
+for a in pln1 rev1 sco1 chk1 unknown9; do expect 0 "SendMessage to $a allowed" "$(sendm $a)"; done
+touch "$CLAUDE_GUARD_STATE/no-plan-$S"
+expect 0 "SendMessage to builder with no-plan" "$(sendm bld1)"
+reset
 printf '{"session_id":"%s","agent_id":"a1","agent_type":"helper-planner","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"subagent_type":"helper-medium"}}' "$S" > "$T/h.json"
 expect 0 "helper starting a helper not gated here" "$(cat "$T/h.json")"
 
@@ -118,7 +136,7 @@ expect 0 "front chat ACTIVE.md edit" "$(edit /Users/r/Projects/ACTIVE.md Edit)"
 
 echo "== Bash"
 reset
-for c in 'ls -la' 'git status' 'git log --oneline | head' 'cat a.txt > /dev/null' 'grep -rn foo . 2>/dev/null' 'ls 2>&1 | head' 'echo \"a > b\"' 'git diff --stat' 'git add -A' 'git commit -m x' 'git push origin main' 'git -C /x commit -m y' 'git merge feat' 'git pull --ff-only' 'git fetch' 'git branch' 'git branch -a' 'git branch -d old' 'git branch --merged main' 'git worktree list' 'git worktree remove /x' 'git worktree prune' 'git rev-parse HEAD' 'git ls-files' 'git config --get user.name' 'git show HEAD' 'find . -name a' 'sort f' 'wc -l f | head' 'head -3 f; tail -3 f' 'pwd && date' 'which git' 'cd /x && ls' 'stat f' 'diff a b' 'printf hi' 'rg foo' 'bash /x/.claude/hooks/tidy.sh list' 'git commit -m \"a; rm b | c\"' 'echo \"$(date)\"' 'git log -1 $(git rev-parse HEAD)'; do
+for c in 'ls -la' 'git status' 'git log --oneline | head' 'cat a.txt > /dev/null' 'grep -rn foo . 2>/dev/null' 'ls 2>&1 | head' 'echo \"a > b\"' 'git diff --stat' 'git add -A' 'git commit -m x' 'git push origin main' 'git -C /x commit -m y' 'git merge feat' 'git pull --ff-only' 'git fetch' 'git branch' 'git branch -a' 'git branch -d old' 'git branch --merged main' 'git worktree list' 'git worktree remove /x' 'git worktree prune' 'git rev-parse HEAD' 'git ls-files' 'git -C /x status' 'git push origin HEAD:main' 'git config --get user.name' 'git show HEAD' 'find . -name a' 'sort f' 'wc -l f | head' 'head -3 f; tail -3 f' 'pwd && date' 'which git' 'cd /x && ls' 'stat f' 'diff a b' 'printf hi' 'rg foo' 'bash /x/.claude/hooks/tidy.sh list' 'git commit -m \"a; rm b | c\"' 'echo \"$(date)\"' 'git log -1 $(git rev-parse HEAD)'; do
   expect 0 "front allows: $c" "$(bash_f "$c")"; done
 for c in 'echo hi > out.txt' 'echo hi >> out.txt' 'sed -i s/a/b/ f' "sed -i '' s/a/b/ f" 'ls | tee f' 'cp a b' 'mv a b' 'rm -f a' 'git checkout -b new' 'git reset --hard' 'perl -pi -e s/a/b/ f' 'ls && rm a' 'git restore f' 'git stash' 'git checkout -- f' 'touch f' 'mkdir d' 'ln -s a b' 'python3 -c \"open(1)\"' 'python -c x'; do
   expect 2 "front blocks: $c" "$(bash_f "$c")"; done
@@ -135,7 +153,7 @@ expect 0 "builder may redirect" "$(bash_a helper-medium 'echo x > f')"
 
 echo "== Front chat allow-list bypasses"
 reset
-for c in 'bash -c \"echo hi\"' 'sh -c ls' 'dd if=a of=b' 'git apply p.diff' 'patch -p1 < x' 'tee f' 'python3 -c \"open(1)\"' 'node -e 1' 'curl http://x' 'awk 1 f' 'sed -n 1,5p f' 'eval ls' 'xargs rm' 'ls; rm a' 'ls | sh' 'ls & rm a' 'ls || rm a' 'ls $(rm a)' 'echo \"$(rm a)\"' 'echo `rm a`' 'cat <(rm a)' 'FOO=1 ls' '/bin/ls' 'l\s' 'git push --force' 'git push -f origin main' 'git push --force-with-lease' 'git push origin +main' 'git pull' 'git branch newb' 'git branch -D x' 'git branch -m a b' 'git worktree add /x' 'git config user.name x' 'git config --global x y' 'git clean -fd' 'git rebase main' 'git cherry-pick x' 'git checkout main' 'git tag x' 'git diff --output=f' 'find . -delete' 'find . -exec rm {} ;' 'find . -fprint f' 'sort -o f g' 'sort --output=f g' 'rg --pre cmd x' 'date -s 10:00' 'bash x.sh' 'bash /x/tidy.sh fix' 'node a.js' 'make'; do
+for c in 'bash -c \"echo hi\"' 'sh -c ls' 'dd if=a of=b' 'git apply p.diff' 'patch -p1 < x' 'tee f' 'python3 -c \"open(1)\"' 'node -e 1' 'curl http://x' 'awk 1 f' 'sed -n 1,5p f' 'eval ls' 'xargs rm' 'ls; rm a' 'ls | sh' 'ls & rm a' 'ls || rm a' 'ls $(rm a)' 'echo \"$(rm a)\"' 'echo `rm a`' 'cat <(rm a)' 'FOO=1 ls' '/bin/ls' 'l\s' 'git push --force' 'git push -f origin main' 'git push --force-with-lease' 'git push origin +main' 'git pull' 'git branch newb' 'git branch -D x' 'git branch -m a b' 'git worktree add /x' 'git config user.name x' 'git config --global x y' 'git clean -fd' 'git rebase main' 'git cherry-pick x' 'git checkout main' 'git tag x' 'git diff --output=f' 'find . -delete' 'find . -exec rm {} ;' 'find . -fprint f' 'sort -o f g' 'sort --output=f g' 'rg --pre cmd x' 'date -s 10:00' 'bash x.sh' 'bash /x/tidy.sh fix' 'node a.js' 'make' 'git --upload-pack=x fetch' 'git fetch --upload-pack x' 'git push --receive-pack=x' 'git log --exec=x' 'git -c core.pager=x log' 'git -C /x -c a=b status' 'git push -d origin b' 'git push --delete origin b' 'git push origin :branch' 'git worktree remove --force /x' 'git worktree remove -f /x'; do
   expect 2 "front refuses: $c" "$(bash_f "$c")"; done
 for c in 'Get-ChildItem' 'Get-Content a' 'Select-String foo a' 'Test-Path a'; do expect 0 "PowerShell front allows: $c" "$(ps_f "$c")"; done
 for c in 'sc a b' 'ni a' 'ri a' '[IO.File]::WriteAllText(a,b)' 'Get-Content a | Set-Content b' 'Invoke-Expression x' 'Set-Content a b' 'cmd /c dir'; do
@@ -152,6 +170,60 @@ for a in helper-planner helper-reviewer helper-scout helper-check; do
 done
 expect 0 "Explore not command-checked" "$(bash_a Explore 'rm a')"
 expect 0 "general-purpose helper may write" "$(bash_a general-purpose 'echo x > f')"
+
+echo "== Read-only helpers: allow-list"
+for a in helper-planner helper-reviewer helper-scout helper-check; do
+  for c in 'awk 1 f' 'sed -n 1p f' 'git checkout -b x' 'git branch newb' 'git branch -d x' 'git config user.name x' 'git config --global a b' 'curl -o f http://x' 'chmod +x f' 'python3 x.py' 'python3 -c 1' 'ls; rm a' 'ls $(rm a)' 'git add -A' 'git fetch' 'git worktree add /x' 'bash x.sh' 'bash /x/evil.sh'; do
+    expect 2 "$a refuses: $c" "$(bash_a $a "$c")"; done
+  for c in 'ls -la' 'cat f | head -3' 'git status' 'git diff --stat' 'git show HEAD' 'git branch -a' 'git config --get a.b' 'rg foo' 'find . -name a' 'wc -l f && pwd'; do
+    expect 0 "$a allows: $c" "$(bash_a $a "$c")"; done
+done
+for a in helper-scout helper-check; do
+  expect 0 "$a runs a known test script" "$(bash_a $a 'bash /x/.claude/hooks/tests/role-guard.test.sh')"
+  expect 0 "$a runs run-all.sh --only" "$(bash_a $a 'bash /x/tests/run-all.sh --only foo')"
+  expect 2 "$a test script with chained rm" "$(bash_a $a 'bash /x/a.test.sh; rm a')"
+done
+for a in helper-planner helper-reviewer; do expect 2 "$a may not run test scripts" "$(bash_a $a 'bash /x/a.test.sh')"; done
+
+echo "== Builder chat (ROLE: builder marker) may edit and run"
+reset
+expect 2 "front chat edit before marker" "$(edit $CODE)"
+touch "$CLAUDE_GUARD_STATE/builder-$S"
+expect 0 "builder chat edit" "$(edit $CODE)"
+expect 0 "builder chat Bash write" "$(bash_f 'echo x > f')"
+reset
+
+echo "== field() speed (40 KB planner reply)"
+reset
+big=$(head -c 40000 /dev/zero | tr '\0' 'a' | sed 's/aaaaaaaaaa/word word /g')
+t0=$(perl -MTime::HiRes=time -e 'print time')
+sub helper-planner "$big" | bash "$H/role-guard.sh"
+t1=$(perl -MTime::HiRes=time -e 'print time')
+perl -e 'exit(('"$t1"'-'"$t0"') < 1 ? 0 : 1)' && ok || bad "40 KB parse took >= 1 s"
+has planner && [ "$(wc -c < "$CLAUDE_GUARD_STATE/planner-$S")" -gt 30000 ] && ok || bad "40 KB planner reply not saved whole"
+reset
+
+echo "== seq counter, parallel stops"
+reset
+for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  printf '{"session_id":"p%s","agent_id":"x%s","agent_type":"helper-check","hook_event_name":"SubagentStop","last_assistant_message":"d"}' "$i" "$i" | bash "$H/role-guard.sh" &
+done; wait
+[ "$(cat "$CLAUDE_GUARD_STATE/seq")" = 12 ] && ok || bad "seq lost updates: $(cat "$CLAUDE_GUARD_STATE/seq")"
+[ "$(cat "$CLAUDE_GUARD_STATE"/checked-p* | sort -u | wc -l | tr -d ' ')" = 12 ] && ok || bad "seq numbers collided"
+reset
+
+echo "== Size: small detection"
+for txt in '**Size:** small' '**Size**: small' 'Plan. Size: small, one file' 'Size: Small'; do
+  reset; sub helper-planner "$txt" | bash "$H/role-guard.sh"; sub helper-light done | bash "$H/role-guard.sh"; sub helper-check ok | bash "$H/role-guard.sh"
+  expect 0 "small route: $txt" "$(stop)"; done
+for txt in 'this is not Size: small' 'Size: smaller than before' 'Size: large'; do
+  reset; sub helper-planner "$txt" | bash "$H/role-guard.sh"; sub helper-light done | bash "$H/role-guard.sh"; sub helper-check ok | bash "$H/role-guard.sh"
+  expect 2 "not small route: $txt" "$(stop)"; done
+
+echo "== ExitPlanMode with empty plan and no planner marker"
+reset
+printf '%s' "$(exitplan '')" > "$T/e.json"
+HOME=$T/home bash "$H/role-guard.sh" < "$T/e.json" >/dev/null 2>&1; [ $? = 2 ] && ok || bad "other chat's plans file picked without planner marker"
 
 echo "== Log-only mode and role-off"
 reset

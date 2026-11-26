@@ -1,6 +1,7 @@
 #!/bin/bash
 # UserPromptSubmit: turns the user's own words into a permission marker (lasts the chat). Opus for planning and review is always allowed (model-guard.sh).
 #   "no plan" / "skip the plan" / "just do it" -> no-plan-<session> (plan-gate.sh).
+#   a line starting "ROLE: builder" -> builder-<session> (role-guard.sh).
 #   "role guard off" -> role-off-<session>; "update my rules" / "install my rules" (also "house rules", not when negated) -> rules-update-<session> (role-guard.sh).
 # Only this hook writes the markers; Claude cannot (the prompt comes from the person typing, not from a tool). Bash only, no jq, no python.
 in=$(cat)
@@ -9,6 +10,7 @@ r='"session_id"[[:space:]]*:[[:space:]]*"([^"]*)"'; sid=; [[ $in =~ $r ]] && sid
 d=${CLAUDE_GUARD_STATE:-$HOME/.claude/guard-state}; mkdir -p "$d" 2>/dev/null
 r='"prompt"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'; [[ $in =~ $r ]] || exit 0
 p=${BASH_REMATCH[1]}
+r='(\\n|"prompt"[[:space:]]*:[[:space:]]*")[[:space:]]*ROLE:[[:space:]]*builder'; [[ $in =~ $r ]] && : > "$d/builder-$sid"   # brief of a chat started to build (role-guard.sh)
 # Drop notes the app adds to the prompt (<system-reminder>...</system-reminder>): only the user's own words count (an added
 # "status, not an instruction" note must not change what the user said).
 q=$(printf '%s' "$p" | perl -0pe 's/(?:<|\\u003c)system-reminder(?:>|\\u003e).*?(?:<|\\u003c)\/system-reminder(?:>|\\u003e)//gs' 2>/dev/null) && p=$q

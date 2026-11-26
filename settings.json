@@ -14,7 +14,7 @@
         "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/model-guard.sh\"" } ] },
       { "matcher": "ExitPlanMode|Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/plan-gate.sh\"" } ] },
-      { "matcher": "ExitPlanMode|Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task|Workflow|mcp__ccd_session__start_session",
+      { "matcher": "ExitPlanMode|Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task|Workflow|SendMessage|mcp__ccd_session__start_session",
         "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/role-guard.sh\"" } ] }
     ],
     "SubagentStop": [

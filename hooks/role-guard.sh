@@ -20,21 +20,52 @@
 #   Stop                    once: built-<sid> newer than reviewed-<sid> -> exit 2 (stop_hook_active true = never twice). Small route: planner
 #                           text contains "Size: small" and a helper-check run is newer than the last build -> passes.
 #   SessionStart            model field (documented, "not always included") not Sonnet -> warning; absent -> log only.
+# Round 2 (Opus review): builder gate via review needs a built marker + valid plan-ok; SendMessage to a recorded builder agent_id (agent-<id>
+#   files, written at SubagentStop) is gated like Agent; read-only helpers use the front chat's allow-list (git reads only; scout/check may
+#   run bash <x>.test.sh|run-all.sh); a chat with builder-<sid> (prompt-gate.sh writes it when its first prompt has "ROLE: builder",
+#   which is how a start_session builder is recognised) may edit and run commands; rules-update-<sid> counts 30 minutes; the settings.json
+#   PreToolUse matcher must include SendMessage (owner of that file).
 # ROLE_GUARD_LOG_ONLY=1: a refusal is logged as "would refuse" and allowed; every event's sid, event and type is logged.
 # role-off-<sid> in the state folder: refusals are allowed.
 # Fields from the docs (code.claude.com/docs/en/hooks): agent_id/agent_type on hooks inside a subagent; SubagentStop agent_type +
 # last_assistant_message; permission_mode; SessionStart model. Anything missing falls back to allow + a line in role-guard.log.
 in=$(cat)
 d=${CLAUDE_GUARD_STATE:-$HOME/.claude/guard-state}
-field() { REPLY=; local r='(^|[^\\])"'"$1"'"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'; [[ $in =~ $r ]] && REPLY=${BASH_REMATCH[2]}; }
+# field <key>: first string value of "key" in $in -> REPLY. Pure bash string cutting, linear in the input size (a 40 KB planner
+# reply parses in a few ms; the old single regex was quadratic). nocasematch is switched off inside so the cuts and the tests agree.
+field() {
+  REPLY=; local k=$1 rest=$in pre part v acc bsl nc=0
+  shopt -q nocasematch && { nc=1; shopt -u nocasematch; }
+  while [[ $rest == *"\"$k\""* ]]; do
+    pre=${rest%%\"$k\"*}; rest=${rest#*\"$k\"}
+    [ "${pre: -1}" = '\' ] && continue
+    if [[ ${rest:0:64} =~ ^[[:space:]]*:[[:space:]]*\" ]]; then
+      v=${rest#*:}; v=${v#*\"}; acc=
+      while :; do
+        part=${v%%\"*}
+        [ "$part" = "$v" ] && break                       # no closing quote: not a string value
+        acc+=$part; v=${v:${#part}+1}; bsl=0; pre=$part
+        while [ "${pre: -1}" = '\' ]; do bsl=$((bsl+1)); pre=${pre%?}; done   # trailing backslashes (cheap; a ## pattern here was quadratic)
+        if [ $((bsl % 2)) = 1 ]; then acc+='"'; else REPLY=$acc; break 2; fi
+      done
+    fi
+  done
+  [ $nc = 1 ] && shopt -s nocasematch
+  return 0
+}
 log() { mkdir -p "$d" 2>/dev/null; printf '%s %s\n' "$(date +%FT%T)" "$1" >> "$d/role-guard.log" 2>/dev/null; }
 refuse() {
   [ -f "$d/role-off-$sid" ] && exit 0
   if [ "$ROLE_GUARD_LOG_ONLY" = 1 ]; then log "would refuse (sid $sid $ev ${atype:-front} $tool): $1"; exit 0; fi
-  echo "Blocked by the shared rules (role guard): $1" >&2; exit 2; }
+  echo "Blocked by the optimal rule set (role guard): $1 Say \"role guard off\" to switch the role guard off for this chat." >&2; exit 2; }
 unjson() { REPLY=$1; REPLY=${REPLY//\\n/$'\n'}; REPLY=${REPLY//\\t/ }; REPLY=${REPLY//\\r/ }; REPLY=${REPLY//\\\"/\"}; REPLY=${REPLY//\\\\/\\}; }
 norm() { printf '%s' "$1" | LC_ALL=C sed -E 's/\\u[0-9a-fA-F]{4}//g' | LC_ALL=C tr 'A-Z' 'a-z' | LC_ALL=C tr -cd 'a-z0-9'; }
-nextseq() { local n; n=$(cat "$d/seq" 2>/dev/null); n=$(( ${n:-0} + 1 )); echo "$n" > "$d/seq"; REPLY=$n; }
+nextseq() {   # running number; mkdir lock so two helpers finishing at once cannot collide (stale lock broken after about 6 s)
+  local n i lk="$d/seq.lock"
+  mkdir -p "$d" 2>/dev/null
+  for ((i=0;i<300;i++)); do mkdir "$lk" 2>/dev/null && break; sleep 0.02; done
+  [ $i = 300 ] && { rmdir "$lk" 2>/dev/null; mkdir "$lk" 2>/dev/null; }
+  n=$(cat "$d/seq" 2>/dev/null); n=${n//[^0-9]/}; n=$(( ${n:-0} + 1 )); echo "$n" > "$d/seq"; rmdir "$lk" 2>/dev/null; REPLY=$n; }
 seqof() { REPLY=0; [ -f "$1" ] && { REPLY=$(cat "$1" 2>/dev/null); REPLY=${REPLY//[^0-9]/}; REPLY=${REPLY:-0}; }; }
 field session_id; sid=${REPLY//[^A-Za-z0-9-]/}
 ev=$1; if [ -z "$ev" ] || [ "$ev" = global ]; then field hook_event_name; ev=$REPLY; fi
@@ -48,11 +79,22 @@ shopt -s nocasematch extglob
 RO='helper-@(planner|reviewer|scout|check)'                       # read-only helpers that may not write
 NB='@(helper-planner|helper-reviewer|helper-scout|helper-check|Explore|claude-code-guide|web-fetch)'   # types that are not builders
 
+is_small() {   # planner reply file $1 says "Size: small" (bold markdown ok: **Size:** small); "not Size: small" does not count
+  [ -f "$1" ] || return 1
+  perl -0ne 's/(?:\bnot|\bnever|\bno|n.t)\W+Size/X/gi; exit(/(?:^|[^A-Za-z])Size\W{0,6}small\b/i ? 0 : 1)' "$1" 2>/dev/null
+}
+
+plan_ok_valid() {   # plan-ok exists and is not older than the latest planner reply (a new planner reply needs a new OK)
+  [ -f "$d/plan-ok-$sid" ] || return 1
+  [ -f "$d/planner-$sid" ] && [ "$d/planner-$sid" -nt "$d/plan-ok-$sid" ] && return 1
+  return 0
+}
+
 builder_ok() {   # 0 = a builder may start
   [ -f "$d/no-plan-$sid" ] && return 0
-  [ -f "$d/rules-update-$sid" ] && return 0
-  [ -s "$d/planner-$sid" ] && [ -f "$d/plan-ok-$sid" ] && ! [ "$d/planner-$sid" -nt "$d/plan-ok-$sid" ] && return 0
-  if [ -f "$d/reviewed-$sid" ]; then
+  [ -n "$(find "$d/rules-update-$sid" -mmin -30 2>/dev/null)" ] && return 0   # rules-update marker counts for 30 minutes only
+  [ -s "$d/planner-$sid" ] && plan_ok_valid && return 0
+  if [ -f "$d/built-$sid" ] && [ -f "$d/reviewed-$sid" ] && plan_ok_valid; then   # next round: only after a build, a newer review and a valid OK
     seqof "$d/built-$sid"; local b=$REPLY; seqof "$d/reviewed-$sid"; [ "$REPLY" -gt "$b" ] && return 0
   fi
   return 1
@@ -86,8 +128,9 @@ split_cmd() {   # quote-aware split at ; & && | || newline $( ` <( into SEGS
   SEGS+=("$cur")
 }
 
+ROMODE=
 fwhy=
-front_seg() {   # one segment; 0 = on the allow-list, else sets fwhy
+front_seg() {   # one segment; 0 = on the allow-list, else sets fwhy. ROMODE=1: read-only helpers (git reads only)
   local s=$1 w rest sub ga t prev toks
   s=${s#"${s%%[![:space:]]*}"}; s=${s%"${s##*[![:space:]]}"}
   [ -z "$s" ] && return 0
@@ -99,21 +142,40 @@ front_seg() {   # one segment; 0 = on the allow-list, else sets fwhy
     sort) [[ $rest =~ (^|[[:space:]])(-[a-zA-Z]*o|--output) ]] && { fwhy="sort -o writes a file"; return 1; }; return 0 ;;
     date) [[ $rest =~ (^|[[:space:]])(-s|--set) ]] && { fwhy="date -s sets the clock"; return 1; }; return 0 ;;
     bash) [[ $s =~ ^bash[[:space:]]+[^[:space:]]*/tidy\.sh[[:space:]]+list([[:space:]]|\)|$) ]] && return 0
-          fwhy="bash is only allowed as: bash <path>/tidy.sh list"; return 1 ;;
+          t='^bash[[:space:]]+[A-Za-z0-9_./~-]*(\.test\.sh|run-all\.sh)([[:space:]]+[-A-Za-z0-9_./=:,]+)*$'
+          [[ $atype == helper-scout || $atype == helper-check ]] && [[ $s =~ $t ]] && return 0   # known test scripts
+          fwhy="bash is only allowed as: bash <path>/tidy.sh list (scout/check: bash <path>.test.sh or run-all.sh)"; return 1 ;;
     git)
       if [[ $s =~ ^git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+([A-Za-z-]+)(.*)$ ]]; then sub=${BASH_REMATCH[2]}; ga=${BASH_REMATCH[3]}
       else fwhy="that git form"; return 1; fi
-      [[ $ga == *--output* ]] && { fwhy="git --output writes a file"; return 1; }
+      shopt -u nocasematch
+      [[ $s =~ ^git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)*(-c([[:space:]=]|$)|--config-env) ]] && { shopt -s nocasematch; fwhy="git -c runs configured programs"; return 1; }
+      shopt -s nocasematch
+      [[ $s =~ (^|[[:space:]])--(upload-pack|receive-pack|exec|output) ]] && { fwhy="git --upload-pack/--receive-pack/--exec/--output run programs or write files"; return 1; }
       case "$sub" in
-        status|log|diff|show|add|commit|fetch|rev-parse|ls-files|merge) return 0 ;;
-        push) [[ $ga =~ (^|[[:space:]])(--force[a-z-]*|-f|-[a-zA-Z]*f[a-zA-Z]*|\+[^[:space:]]*|--delete|--mirror) ]] && { fwhy="git push --force"; return 1; }; return 0 ;;
-        pull) [[ $ga =~ (^|[[:space:]])--ff-only([[:space:]]|$) ]] && return 0; fwhy="git pull needs --ff-only"; return 1 ;;
-        worktree) [[ $ga =~ ^[[:space:]]+(list|remove|prune)([[:space:]]|$) ]] && return 0; fwhy="git worktree (only list, remove, prune)"; return 1 ;;
+        status|log|diff|show|rev-parse|ls-files) return 0 ;;
+        add|commit|fetch|merge) [ -n "$ROMODE" ] && { fwhy="git $sub writes"; return 1; }; return 0 ;;
+        push) [ -n "$ROMODE" ] && { fwhy="git push writes"; return 1; }
+          [[ $ga =~ (^|[[:space:]])(--force[a-z-]*|-f|-[a-zA-Z]*f[a-zA-Z]*|\+[^[:space:]]*|--delete|--mirror|-d|-[a-zA-Z]*d[a-zA-Z]*)([[:space:]]|$) ]] && { fwhy="git push --force or --delete"; return 1; }
+          [[ $ga =~ (^|[[:space:]]):[^[:space:]] ]] && { fwhy="git push origin :branch deletes a remote branch"; return 1; }
+          return 0 ;;
+        pull) [ -n "$ROMODE" ] && { fwhy="git pull writes"; return 1; }
+          [[ $ga =~ (^|[[:space:]])--ff-only([[:space:]]|$) ]] && return 0; fwhy="git pull needs --ff-only"; return 1 ;;
+        worktree)
+          [[ $ga =~ ^[[:space:]]+list([[:space:]]|$) ]] && return 0
+          [ -n "$ROMODE" ] && { fwhy="git worktree (only list)"; return 1; }
+          if [[ $ga =~ ^[[:space:]]+remove([[:space:]]|$) ]]; then
+            [[ $ga =~ (^|[[:space:]])(--force|-[a-zA-Z]*f[a-zA-Z]*)([[:space:]]|$) ]] && { fwhy="git worktree remove --force"; return 1; }
+            return 0
+          fi
+          [[ $ga =~ ^[[:space:]]+prune([[:space:]]|$) ]] && return 0
+          fwhy="git worktree (only list, remove, prune)"; return 1 ;;
         config) [[ $ga =~ ^[[:space:]]+--get([[:space:]]|$) ]] && return 0; fwhy="git config (only --get)"; return 1 ;;
         branch)
           set -f; read -ra toks <<< "$ga"; set +f; shopt -u nocasematch
           case "${toks[0]}" in
-            -d|--delete) for t in "${toks[@]}"; do case "$t" in -D|-f|--force|-m|-M|-c|-C) fwhy="git branch $t"; return 1;; esac; done; shopt -s nocasematch; return 0 ;;
+            -d|--delete) [ -n "$ROMODE" ] && { shopt -s nocasematch; fwhy="git branch -d writes"; return 1; }
+              for t in "${toks[@]}"; do case "$t" in -D|-f|--force|-m|-M|-c|-C) fwhy="git branch $t"; return 1;; esac; done; shopt -s nocasematch; return 0 ;;
           esac
           prev=
           for t in "${toks[@]}"; do
@@ -134,6 +196,9 @@ front_seg() {   # one segment; 0 = on the allow-list, else sets fwhy
 
 case "$ev" in
 SubagentStop)
+  if [ -n "$aid" ] && [ -n "$atype" ]; then   # agent_id -> type, so SendMessage to a builder can go through the builder gate
+    mkdir -p "$d" 2>/dev/null; printf '%s' "$atype" > "$d/agent-${aid//[^A-Za-z0-9_-]/}" 2>/dev/null
+  fi
   case "$atype" in
     helper-planner)
       field last_assistant_message; txt=$REPLY
@@ -149,16 +214,24 @@ SubagentStop)
 
 PreToolUse)
   case "$tool" in
-  Agent|Task|Workflow|*start_session)
+  Agent|Task|Workflow|SendMessage|*start_session)
     [ -n "$aid" ] && exit 0
     bld=0
     case "$tool" in
       Workflow) bld=1 ;;
+      SendMessage)   # to a helper recorded as a builder type at SubagentStop; planner/reviewer/scout/check/unknown ids are allowed
+        for k in to agentId agent_id; do
+          field $k; t=${REPLY//[^A-Za-z0-9_-]/}
+          if [ -n "$t" ] && [ -f "$d/agent-$t" ]; then
+            read -r bt < "$d/agent-$t"; case "$bt" in ""|$NB) ;; *) bld=1 ;; esac
+            break
+          fi
+        done ;;
       *start_session) [[ $in == *"ROLE: builder"* ]] && bld=1 ;;
       *) field subagent_type; case "$REPLY" in $NB) ;; *) bld=1 ;; esac ;;
     esac
     if [ $bld = 1 ] && ! builder_ok; then
-      refuse "no builder yet. Order: helper-planner plans, the user says OK, then Sonnet builders, then helper-reviewer."
+      refuse "no builder yet. Order: helper-planner plans, the user says OK (a new planner reply needs a new OK), then Sonnet builders, then helper-reviewer."
     fi
     exit 0 ;;
   ExitPlanMode)
@@ -167,14 +240,18 @@ PreToolUse)
     if [ -z "$p" ]; then
       pf=$(ls -t "$HOME"/.claude/plans/*.md 2>/dev/null | head -1)
       [ -z "$pf" ] && { log "no plan text (sid $sid): allowed"; exit 0; }
-      if [ -f "$d/planner-$sid" ] && ! [ "$pf" -nt "$d/planner-$sid" ]; then log "plans file older than planner reply (sid $sid): allowed"; exit 0; fi
+      # only a plans file newer than THIS chat's planner marker can be this chat's plan (never pick another chat's file)
+      [ -f "$d/planner-$sid" ] || refuse "Plans come from helper-planner word for word. Start helper-planner first."
+      if ! [ "$pf" -nt "$d/planner-$sid" ]; then log "plans file not newer than planner reply (sid $sid): allowed"; exit 0; fi
       p=$(cat "$pf")
     else unjson "$p"; p=$REPLY; fi
     [ -f "$d/planner-$sid" ] || refuse "Plans come from helper-planner word for word. Start helper-planner first."
     [ "$(norm "$p")" = "$(norm "$(cat "$d/planner-$sid")")" ] || refuse "Plans come from helper-planner word for word."
     exit 0 ;;
   Edit|Write|MultiEdit|NotebookEdit)
-    if [ -n "$aid" ]; then [[ $atype == $RO ]] || exit 0; fi
+    if [ -n "$aid" ]; then [[ $atype == $RO ]] || exit 0
+    elif [ -f "$d/builder-$sid" ]; then exit 0   # a chat started with "ROLE: builder" (prompt-gate.sh writes builder-<sid> on its first prompt): it is the builder
+    fi
     field permission_mode; pm=$REPLY
     f=; r='"(file_path|notebook_path)"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'; [[ $in =~ $r ]] && f=${BASH_REMATCH[2]}
     f=${f//\\\\//}; f=${f//\\//}
@@ -190,19 +267,20 @@ PreToolUse)
     refuse "the front chat doesn't edit; give it to a Sonnet builder." ;;
   Bash|PowerShell)
     ro=0
-    if [ -n "$aid" ]; then [[ $atype == $RO ]] && ro=1 || exit 0; fi
+    if [ -n "$aid" ]; then [[ $atype == $RO ]] && ro=1 || exit 0
+    elif [ -f "$d/builder-$sid" ]; then exit 0   # "ROLE: builder" chat (builder-<sid> from prompt-gate.sh): same as a builder helper
+    fi
     field command; unjson "$REPLY"; c=$REPLY
     q=$(printf '%s' "$c" | perl -0pe 's/"[^"]*"|'"'"'[^'"'"']*'"'"'//gs' 2>/dev/null) || q=$c   # drop quoted text
     q=${q//2>&1/}; q=${q//>&2/}; q=$(printf '%s' "$q" | sed -E 's#[0-9&]?>>?[[:space:]]*/dev/null##g')
     why=
     [[ $q == *">"* ]] && why="a redirect to a file"
-    if [ $ro = 1 ]; then
-      b='(^|[;&|(`]|\$\(|xargs[[:space:]]+|-exec[[:space:]]+|sudo[[:space:]]+|then[[:space:]]+|do[[:space:]]+)[[:space:]]*'
-      g='git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+'
-      r="$b(sed[[:space:]]+(-[A-Za-z]*i|--in-place)|perl[[:space:]]+-[A-Za-z]*[ie]|tee|cp|mv|rm|touch|mkdir|ln|dd|patch|eval|truncate|rsync|install|(ba|z|da)?sh[[:space:]]+-[A-Za-z]*c|(python3?|node|ruby)[[:space:]]+-[ce]|${g}(commit|merge|push|reset|restore|stash|apply|am|clean|rm|mv|cherry-pick|rebase|pull)|${g}checkout[[:space:]]+(-b|--)|(Set-Content|Out-File|Add-Content|New-Item|Copy-Item|Move-Item|Remove-Item|sc|ni|ri))([[:space:]]|\$)"
-      [ -z "$why" ] && [[ $q =~ $r ]] && why="a write command"
-      [ -z "$why" ] && [[ $q =~ \[(System\.)?IO\.File\]:: ]] && why="[IO.File]::"
+    if [ $ro = 1 ]; then   # read-only helpers: the same allow-list as the front chat, git reads only (ROMODE)
       [ -n "$why" ] && refuse "$atype only reads (found $why). Writing is for Sonnet builders."
+      ROMODE=1; split_cmd "$c"
+      for seg in "${SEGS[@]}"; do
+        front_seg "$seg" || refuse "$atype only runs read commands ($fwhy). Writing is for Sonnet builders."
+      done
       exit 0
     fi
     [ -n "$why" ] && refuse "the front chat only reads and reports (found $why). Give it to a Sonnet builder."
@@ -220,8 +298,8 @@ Stop)
   [ -f "$d/built-$sid" ] || exit 0
   seqof "$d/built-$sid"; b=$REPLY; seqof "$d/reviewed-$sid"; v=$REPLY
   if [ "$b" -gt "$v" ]; then
-    seqof "$d/checked-$sid"; k=$REPLY; r='Size:[[:space:]]*small'
-    [ "$k" -gt "$b" ] && [ -f "$d/planner-$sid" ] && [[ $(cat "$d/planner-$sid") =~ $r ]] && exit 0
+    seqof "$d/checked-$sid"; k=$REPLY
+    [ "$k" -gt "$b" ] && is_small "$d/planner-$sid" && exit 0
   fi
   [ "$b" -gt "$v" ] && refuse "A builder ran after the last review: start helper-reviewer before finishing."
   exit 0 ;;

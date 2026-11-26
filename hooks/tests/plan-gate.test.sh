@@ -79,6 +79,9 @@ expect 0 "research plan with only Review line passes" "$(exitplan "Look up the r
 expect 2 "research plan without Review line blocked" "$(exitplan "Look up the rates in the connector and summarise.")"
 out=$(printf '%s' "$(exitplan "Build it")" | bash "$H/plan-gate.sh" 2>&1 >/dev/null); [[ $out == *Builders* && $out == *Review* ]] && ok || bad "refusal lists what is missing: $out"
 
+# builder marker (role-guard.sh relies on it)
+prompt "ROLE: builder\\nTIER: 2" >/dev/null 2>&1; [ -f "$CLAUDE_GUARD_STATE/builder-$SID" ] && ok "builder marker written" || bad "builder marker written"
+
 rm -rf "$T"
 echo "plan-gate tests: $pass passed, $fail failed"
 [ "$fail" = 0 ]
