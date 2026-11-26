@@ -1,5 +1,5 @@
 ## My own rules
-These win over the house rules. Updates never change anything in this section except the one-time machine/helper-name block below (added only if missing).
+These win over the shared rules. Updates never change anything in this section except the one-time machine/helper-name block below (added only if missing).
 
 ### My machine (Windows PC)
 Use Windows paths. `~` means `C:\Users\<my name>`.
