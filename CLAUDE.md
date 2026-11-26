@@ -7,7 +7,7 @@ When I say "follow the rules" or "are you applying the house rules?": run the `r
 ## 1. How work is run
 1. **Plan first.** When I ask for something to be built or changed, show a short plan in plan mode (steps, how we'll check it) and wait for my OK. Quick questions and read-only look-ups are exempt.
 2. **One working chat per task.** It plans, builds small and medium changes itself, and reviews. A new unrelated task gets a new chat.
-3. **As many helpers as is safe.** Split a task into pieces that share no files and build them at the same time: up to 3-4 builders at once, never two on one file, each in its own git worktree (the builder helpers do this themselves). Use helpers for wide reading, searching and checks too, so only the conclusion comes back. When one piece waits, start the next independent piece. Every build plan has a **Builders table**: piece · files it owns · helper · start group. A start group is launched in one message. A plan with one builder says why.
+3. **As many helpers as is safe.** Split a task into pieces that share no files and build them at the same time: up to 3-4 builders at once, never two on one file, each in its own git worktree (the builder helpers do this themselves; the project must be a git repo, and helpers start from the pushed main branch, so push what they need first). Use helpers for wide reading, searching and checks too, so only the conclusion comes back. When one piece waits, start the next independent piece. Every build plan has a **Builders table**: piece · files it owns · helper · start group. A start group is launched in one message. A plan with one builder says why.
 4. **Before planning a build**, run the `handover` skill's "before building" check; the plan shows the result in 3-6 lines.
 5. **Review before presenting.** Every plan and finished piece of work gets three reviews before it reaches me (quick questions exempt):
    a. **Docs check:** if it touches Claude Code (rules, skills, helpers, settings), the built-in `claude-code-guide` helper checks it against Anthropic's docs.
@@ -18,7 +18,7 @@ When I say "follow the rules" or "are you applying the house rules?": run the `r
 
 ## 2. Models
 - Setting `"model": "opusplan"` does this: Opus plans and reviews, Sonnet builds. Plan in plan mode. Send reviews, unknown causes and a second failed attempt to an Opus helper.
-- **Opus helpers (`helper-careful`, `helper-heavy`) only after my OK**, asked in the plan message ("OK Opus?"), once per chat.
+- **Opus helpers (`helper-careful`, `helper-heavy`) only after my OK**, asked in the plan message ("OK Opus?"), once per chat. This is a rule only: nothing on my PC blocks it, so keep to it. Same for "never Fable".
 - Helpers: `helper-light` (Sonnet low: exact mechanical edits), `helper-medium` (Sonnet medium: clear builds, up to 3 files), `helper-scout` (Sonnet low, read-only research), `helper-check` (Haiku: look-ups and running a known test, never writing code), `helper-careful` (Opus high: delicate work), `helper-heavy` (Opus xhigh: unknown cause, messy code). Every helper brief says what to do, which files it owns, and how to check it.
 - **Never use the Fable model** (it can bill to extra usage credits). If it is selected, switch back to opusplan and tell me.
 - If a cheaper model fails once, move up. Three cheap tries cost more than one good one.

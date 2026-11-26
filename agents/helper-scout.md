@@ -2,7 +2,8 @@
 name: helper-scout
 description: "Research worker (Sonnet, low). Read-only: research, reading and summarising files or docs, handover checks, running builds or tests and reporting. Cannot edit. Use before any Opus helper."
 model: sonnet
-tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
+tools: Read, Grep, Glob, Bash, PowerShell, WebFetch, WebSearch
+disallowedTools: Edit, Write
 effort: low
 ---
 

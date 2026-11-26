@@ -8,7 +8,7 @@ This is a small kit that sets up Claude Code on your Windows PC the way it works
 3. Open Claude Code and paste this one line:
 
 ```text
-Clone https://github.com/Reuven93/claude-house-rules to ~/claude-house-rules and follow its INSTALL.md
+Clone https://github.com/Reuven93/claude-house-rules into a folder called claude-house-rules in my home folder, then follow its INSTALL.md
 ```
 
 4. Claude shows you a short list of what it will change. Say OK. It backs up anything it replaces (as `.bak` files).
