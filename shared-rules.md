@@ -1,6 +1,6 @@
 # Shared rules for every Claude chat (shared core)
 
-**Shared rules version 26/11/2026i.** One file shared by everyone who uses the kit (`Reuven93/claude-house-rules`); it holds only rules that fit any person and machine. Installed as `~/.claude/shared-rules.md` and loaded by an `@shared-rules.md` line in `~/.claude/CLAUDE.md`. Everything specific to me (my machine and paths, my helper names, my systems, my extra guards) lives in that file under "My own rules"; those win over these, and updates never touch them. My newest instruction wins. To change a general rule, change it here once; never copy it into a personal file.
+**Shared rules version 26/11/2026j.** One file shared by everyone who uses the kit (`Reuven93/claude-house-rules`); it holds only rules that fit any person and machine. Installed as `~/.claude/shared-rules.md` and loaded by an `@shared-rules.md` line in `~/.claude/CLAUDE.md`. Everything specific to me (my machine and paths, my helper names, my systems, my extra guards) lives in that file under "My own rules"; those win over these, and updates never touch them. My newest instruction wins. To change a general rule, change it here once; never copy it into a personal file.
 When I say "follow the rules", "rules check" or ask whether you are applying my rules (shared rules, house rules, optimal rule set): run the `rules-check` skill (audit this chat, 1-3 line answer with the version dates of this file and of my own rules, fix slips, start nothing else).
 Saying "role guard off" turns the role guard off for that chat.
 
@@ -20,7 +20,7 @@ Saying "role guard off" turns the role guard off for that chat.
    One **Review:** line shows what was checked and what was fixed.
 7. **End of task:** write the handover (`handover` skill), save the work (git commit and push), then give me the line to start the next chat. In a long chat keep working to the end of the task; after an automatic clear-out, re-read the handover before the next step; never stop or ask because the chat is long.
 8. **Small route (saves usage):** the planner marks a plan "Size: small" (one file, wording only, no logic, money, rules or data). Then a check helper (Haiku) test run replaces the Opus review, so a one-line change never costs two Opus runs. Everything else follows the normal route.
-9. **Briefs and handover:** the planner writes a ready-to-copy brief for each builder (REPO, files it owns, the check to run, my quoted words); the front chat copies it word for word. The front chat writes the handover and commits and pushes it itself (the role check allows that, and edits to handover files and ACTIVE.md).
+9. **Briefs and handover:** the planner writes a ready-to-copy brief for each builder (REPO, files it owns, the check to run, my quoted words, and "read the handover's Known failures first"); the front chat copies it word for word. The front chat writes the handover and commits and pushes it itself (the role check allows that, and edits to handover files and ACTIVE.md).
 
 ## 2. Models
 - **The front chat runs on Sonnet** (Sonnet in the desktop app's model picker; `/model sonnet` in the terminal; the desktop app does not accept opusplan). It only hands work on and reports. Every request goes to the Opus planner helper. The front chat shows the plan word for word, starts Sonnet builders, then the Opus reviewer helper, and reports the review word for word. It never plans, builds or reviews itself.
@@ -57,6 +57,7 @@ My machine, its paths and the shell I paste commands into are described in my ow
 - When I say "update my rules" (or "update my house rules"): pull the `claude-house-rules` folder in my home folder (clone it from https://github.com/Reuven93/claude-house-rules if missing) and follow its INSTALL.md.
 - Start of a chat on existing work: read its handover and start from **Next step**. Every handover's Next step says which pieces can run at once, so the next chat does the same.
 - Every stop before done: handover updated, committed, pushed, then give me `Carry on from <full handover path>`.
+- **Known failures (standing).** Every failed or stopped run (server kit, test, build, review finding that sent work back) gets a line under 'Known failures' in that task's handover BEFORE the next attempt: date/time, what was run, the failing check quoted from the log, the cause, the fix or who owns it, status (OPEN/FIXED). Lines stay after they are fixed. Every planner, builder and reviewer brief says 'read Known failures first'; a retry that repeats a recorded cause is a mistake, and the planner must name how this attempt avoids each OPEN one.
 - Finish tidy: committed and pushed, merged worktrees and branches deleted, no temp files, handover current; say what was tidied in 1-2 lines.
 
 ## 8. Apps and artifacts
