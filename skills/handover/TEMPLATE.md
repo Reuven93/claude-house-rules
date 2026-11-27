@@ -15,6 +15,10 @@
 - Check: <command> - <commit> - <pass/fail> - <date>
 - Fact: <what was verified> - source: <where> - <date>
 
+## Known failures (read before any retry)
+<!-- Standing rule: every failed or stopped run gets a line here BEFORE the next attempt. Keep FIXED lines so mistakes are not repeated. Planners, builders and reviewers read this first. -->
+- <date time> <what was run> (<log file>): FAIL "<failing check quoted>". Cause: ... Fix/owner: ... Status: OPEN|FIXED
+
 ## Decisions
 - <date> <decision> - <who>
 
